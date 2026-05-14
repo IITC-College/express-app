@@ -1,0 +1,14 @@
+{
+  "permissions": {
+    "allow": [
+      "PowerShell(npm install *)",
+      "PowerShell(npm run *)",
+      "PowerShell(npm test *)",
+      "Skill(iitc-push)",
+      "PowerShell(gh auth *)",
+      "PowerShell(Split-Path *)",
+      "PowerShell(git init *)",
+      "PowerShell(gh repo *)"
+    ]
+  }
+}
