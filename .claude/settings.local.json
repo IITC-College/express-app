@@ -8,7 +8,8 @@
       "PowerShell(gh auth *)",
       "PowerShell(Split-Path *)",
       "PowerShell(git init *)",
-      "PowerShell(gh repo *)"
+      "PowerShell(gh repo *)",
+      "PowerShell(git *)"
     ]
   }
 }
