@@ -1,0 +1,100 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+    inputs:
+      fail_mode:
+        description: "Force a hard test failure (FAIL_MODE=1)"
+        type: boolean
+        default: false
+      flaky_mode:
+        description: "Enable flaky test (FLAKY_MODE=1)"
+        type: boolean
+        default: false
+
+env:
+  FAIL_MODE: ${{ github.event.inputs.fail_mode == 'true' && '1' || '0' }}
+  FLAKY_MODE: ${{ github.event.inputs.flaky_mode == 'true' && '1' || '0' }}
+
+jobs:
+  lint-typecheck:
+    name: Lint + Typecheck
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+      - run: npm run lint
+      - run: npm run typecheck
+
+  test:
+    name: Test (node ${{ matrix.node }} / ${{ matrix.os }})
+    needs: lint-typecheck
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+        node: [20, 22]
+        include:
+          - os: ubuntu-latest
+            node: 18
+            experimental: true
+    outputs:
+      result: ${{ steps.run-tests.outcome }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node }}
+          cache: npm
+      - run: npm ci
+
+      # continue-on-error: experimental Node 18 leg may fail without
+      # failing the whole matrix. outcome != conclusion — that's the lesson.
+      - name: Run tests
+        id: run-tests
+        continue-on-error: ${{ matrix.experimental == true }}
+        run: npm test
+
+      - name: On success only
+        if: success()
+        run: echo "✅ tests passed on node ${{ matrix.node }} / ${{ matrix.os }}"
+
+      - name: On failure only — collect diagnostics
+        if: failure()
+        run: |
+          echo "❌ tests failed on node ${{ matrix.node }} / ${{ matrix.os }}"
+          node --version
+          npm ls --depth=0 || true
+
+      - name: Always — cleanup
+        if: always()
+        run: echo "🧹 cleanup runs regardless of test outcome"
+
+  report:
+    name: Report
+    needs: test
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Summarize upstream result
+        run: |
+          echo "test job result (needs.test.result): ${{ needs.test.result }}"
+          echo "captured outcome output: ${{ needs.test.outputs.result }}"
+
+      - name: Pass gate
+        if: needs.test.result == 'success'
+        run: echo "🚀 all matrix legs green — safe to deploy"
+
+      - name: Fail gate
+        if: needs.test.result == 'failure'
+        run: |
+          echo "🛑 a required matrix leg failed — blocking"
+          exit 1
