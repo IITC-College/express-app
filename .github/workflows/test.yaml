@@ -8,8 +8,8 @@ on:
         branches:
             - main
         paths:
-            - "!src/docs/**"
             - "src/**"
+            - "!src/docs/**"
     pull_request:
         branches: [main]
         types: [opened, closed]
