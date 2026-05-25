@@ -7,6 +7,6 @@ export const validate = (schema: ZodSchema, source: Source = 'body'): RequestHan
   (req: Request, _res: Response, next: NextFunction) => {
     const parsed = schema.safeParse(req[source]);
     if (!parsed.success) return next(parsed.error);
-    (req as any)[source] = parsed.data;
+    (req as unknown as Record<string, unknown>)[source] = parsed.data;
     next();
   };
